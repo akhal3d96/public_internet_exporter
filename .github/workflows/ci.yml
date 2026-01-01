@@ -16,10 +16,10 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Run tests
-        run: go test -v ./...
-
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
           version: latest
+
+      - name: Run tests
+        run: go test -v ./...

@@ -230,12 +230,19 @@ func main() {
 	var (
 		listenAddr  = flag.String("web.listen-address", ":9100", "Address to listen on for HTTP requests.")
 		metricsPath = flag.String("web.metrics-path", "/metrics", "Path under which to expose metrics.")
+		showVersion bool
+		logLevel    slog.Level
 	)
 
-	var logLevel slog.Level
 	flag.TextVar(&logLevel, "log.level", slog.LevelInfo, "set log level")
+	flag.BoolVar(&showVersion, "version", false, "print version and exit")
 
 	flag.Parse()
+
+	if showVersion {
+		fmt.Printf("%s version=%s commit=%s buildDate=%s\n", Name, version, commit, buildDate)
+		return
+	}
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: logLevel,
