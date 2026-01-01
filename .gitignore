@@ -32,3 +32,5 @@ go.work.sum
 .vscode/
 
 public_internet_exporter
+# Added by goreleaser init:
+dist/
