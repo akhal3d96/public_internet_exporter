@@ -20,7 +20,10 @@ import (
 	"golang.org/x/net/ipv4"
 )
 
-const Name = "public_internet_exporter"
+const (
+	Name        = "public_internet_exporter"
+	PingTimeout = 5 * time.Second
+)
 
 // Set these at build time, e.g.:
 // go build -ldflags "-X main.version=1.2.3 -X main.commit=$(git rev-parse --short HEAD) -X main.buildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -30,15 +33,18 @@ var (
 	buildDate = "unknown"
 )
 
+type PingFunc func(context.Context, netip.Addr) bool
+
 type Exporter struct {
 	// Metrics.
 	up *prometheus.Desc
 
 	// Depndencies
 	ipAddrs []netip.Addr
+	ping    PingFunc
 }
 
-func NewExporter(ipAddrs []netip.Addr) *Exporter {
+func NewExporter(ipAddrs []netip.Addr, ping PingFunc) *Exporter {
 
 	for _, ip := range ipAddrs {
 		if !ip.Is4() {
@@ -56,6 +62,7 @@ func NewExporter(ipAddrs []netip.Addr) *Exporter {
 		),
 
 		ipAddrs: ipAddrs,
+		ping:    ping,
 	}
 }
 
@@ -87,7 +94,7 @@ func (e *Exporter) canAccessPublicInternet(ctx context.Context) (ok bool) {
 		ip := ip
 		go func() {
 			slog.Debug("ping dns resolver", "ip", ip)
-			isAccessible <- ping(pingCtx, ip)
+			isAccessible <- e.ping(pingCtx, ip)
 		}()
 	}
 
@@ -112,9 +119,8 @@ func (e *Exporter) canAccessPublicInternet(ctx context.Context) (ok bool) {
 
 func ping(ctx context.Context, ip netip.Addr) bool {
 	// Default timeout if ctx has no deadline.
-	const defaultTimeout = 2 * time.Second
 
-	deadline := time.Now().Add(defaultTimeout)
+	deadline := time.Now().Add(PingTimeout)
 	if dl, ok := ctx.Deadline(); ok && dl.Before(deadline) {
 		deadline = dl
 	}
@@ -261,7 +267,9 @@ func main() {
 		netip.MustParseAddr("8.8.8.8"),
 		netip.MustParseAddr("8.8.4.4"),
 		netip.MustParseAddr("1.1.1.1"),
-	}))
+	},
+		ping,
+	))
 
 	mux := http.NewServeMux()
 
